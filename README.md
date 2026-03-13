@@ -21,34 +21,33 @@ Uygulama **Jetpack Compose** kullanılarak modern Android mimarisi ile geliştir
 app/src/main/res/drawable/screenshots/g1.png
 ## Ana Ekranlar
 
-<img src="https://raw.githubusercontent.com/SabanCE/GymTracking/app/src/main/res/drawable/screenshots/h1.png" width="250">
-<img src="https://raw.githubusercontent.com/SabanCE/GymTracking/main/app/src/main/res/drawable/screenshots/h2.png" width="250">
-
+<img src="https://raw.githubusercontent.com/SabanCE/GymTracking/refs/heads/master/app/src/main/res/drawable/screenshots/h1.png" width="250">
+<img src="https://raw.githubusercontent.com/SabanCE/GymTracking/refs/heads/master/app/src/main/res/drawable/screenshots/h2.png" width="250">
 ---
 
 ## Program Yönetimi
 
-<img src="https://raw.githubusercontent.com/SabanCE/GymTracking/main/app/src/main/res/drawable/screenshots/p1.png" width="250">
-<img src="https://raw.githubusercontent.com/SabanCE/GymTracking/main/app/src/main/res/drawable/screenshots/np1.png" width="250">
+<img src="https://raw.githubusercontent.com/SabanCE/GymTracking/refs/heads/master/app/src/main/res/drawable/screenshots/p1.png" width="250">
+<img src="https://raw.githubusercontent.com/SabanCE/GymTracking/refs/heads/master/app/src/main/res/drawable/screenshots/np1.png" width="250">
 
 ---
 
 ## Antrenman (Workout) Takibi
 
-<img src="https://raw.githubusercontent.com/SabanCE/GymTracking/main/app/src/main/res/drawable/screenshots/w1.png" width="250">
-<img src="https://raw.githubusercontent.com/SabanCE/GymTracking/main/app/src/main/res/drawable/screenshots/w2.png" width="250">
+<img src="https://raw.githubusercontent.com/SabanCE/GymTracking/refs/heads/master/app/src/main/res/drawable/screenshots/w1.png" width="250">
+<img src="https://raw.githubusercontent.com/SabanCE/GymTracking/refs/heads/master/app/src/main/res/drawable/screenshots/w2.png" width="250">
 
 ---
 
 ## Gelişim Takibi
 
-<img src="https://raw.githubusercontent.com/SabanCE/GymTracking/main/app/src/main/res/drawable/screenshots/g1.png" width="250">
+<img src="https://raw.githubusercontent.com/SabanCE/GymTracking/refs/heads/master/app/src/main/res/drawable/screenshots/g1.png" width="250">
 
 ---
 
 ## Makro (Kalori) Hesaplama
 
-<img src="https://raw.githubusercontent.com/SabanCE/GymTracking/main/app/src/main/res/drawable/screenshots/m1.png" width="250">
+<img src="https://raw.githubusercontent.com/SabanCE/GymTracking/refs/heads/master/app/src/main/res/drawable/screenshots/m1.png" width="250">
 
 ---
 
