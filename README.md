@@ -18,7 +18,7 @@ Uygulama **Jetpack Compose** kullanılarak modern Android mimarisi ile geliştir
 ---
 
 # 📸 Ekran Görüntüleri
-app/src/main/res/drawable/screenshots/g1.png
+
 ## Ana Ekranlar
 
 <img src="https://raw.githubusercontent.com/SabanCE/GymTracking/refs/heads/master/app/src/main/res/drawable/screenshots/h1.png" width="250">
@@ -204,7 +204,7 @@ Bir:
 
 # 👨‍💻 Geliştirici
 
-**Şaban Can Evran**
+**Şaban Akçehre**
 
 GitHub:
 https://github.com/SabanCE
