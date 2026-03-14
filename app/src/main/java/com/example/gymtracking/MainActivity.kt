@@ -106,7 +106,7 @@ fun MainScreen() {
 
     LaunchedEffect(programs) {
         if (programs.isNotEmpty()) {
-            WorkoutPrefs.checkAndShiftDay(context, programs.size)
+            WorkoutPrefs.checkAndShiftDay(context, programs.size, programs)
         }
     }
 
