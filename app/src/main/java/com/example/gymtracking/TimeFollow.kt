@@ -47,9 +47,11 @@ object WorkoutPrefs {
         if (totalPrograms == 0) return
         val prefs = getPrefs(context)
         val sdf = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+
         val todayStr = sdf.format(Date())
         val lastShiftDateStr = prefs.getString(KEY_LAST_SHIFT_DATE, "") ?: ""
 
+        // Sadece tarih dizeleri farklıysa işlem yap (24 saat dolmasa bile gün dönmüşse)
         if (lastShiftDateStr != todayStr) {
             if (lastShiftDateStr.isEmpty()) {
                 prefs.edit().putString(KEY_LAST_SHIFT_DATE, todayStr).apply()
@@ -59,35 +61,41 @@ object WorkoutPrefs {
             try {
                 val lastShiftDate = sdf.parse(lastShiftDateStr)
                 val todayDate = sdf.parse(todayStr)
+
                 if (lastShiftDate != null && todayDate != null) {
-                    val diffInDays =
-                        TimeUnit.MILLISECONDS.toDays(todayDate.time - lastShiftDate.time).toInt()
+                    // diffInDays hesabını gün bazında garantilemek için en az 1 gün sayıyoruz
+                    val diffInMillis = todayDate.time - lastShiftDate.time
+                    var diffInDays = TimeUnit.MILLISECONDS.toDays(diffInMillis).toInt()
 
-                    if (diffInDays > 0) {
-                        val lastCompletedDate = prefs.getString(KEY_LAST_COMPLETED_DATE, "") ?: ""
-                        val currentIndex = prefs.getInt(KEY_CURRENT_INDEX, 0)
-                        val lastProgram = allPrograms.getOrNull(currentIndex)
+                    // Eğer tarih değiştiyse ama 24 saat geçmediyse diffInDays 0 gelir, bunu 1'e zorluyoruz
+                    if (diffInDays <= 0) diffInDays = 1
 
-                        val wasLastCompleted = lastCompletedDate == lastShiftDateStr
-                        val wasRestDay = lastProgram?.istRestDay == true
+                    val lastCompletedDate = prefs.getString(KEY_LAST_COMPLETED_DATE, "") ?: ""
+                    val currentIndex = prefs.getInt(KEY_CURRENT_INDEX, 0)
+                    val lastProgram = allPrograms.getOrNull(currentIndex)
 
-                        // Eğer antrenman yapılmadıysa ve dinlenme günü değilse, atlanan indeks olarak kaydet
-                        if (!wasLastCompleted && !wasRestDay) {
-                            prefs.edit().putInt(KEY_SKIPPED_INDEX, currentIndex).apply()
-                        }
+                    // Dünkü antrenman yapıldı mı veya dinlenme günü müydü?
+                    val wasLastCompleted = lastCompletedDate == lastShiftDateStr
+                    val wasRestDay = lastProgram?.istRestDay == true
 
-                        // HER DURUMDA indeksi ilerlet (Yeni güne geçiş)
-                        val nextIndex = (currentIndex + 1) % totalPrograms
-                        val currentTotalDays = prefs.getInt(KEY_TOTAL_DAYS, 1)
-
-                        prefs.edit()
-                            .putInt(KEY_CURRENT_INDEX, nextIndex)
-                            .putInt(KEY_TOTAL_DAYS, currentTotalDays + diffInDays)
-                            .putString(KEY_LAST_SHIFT_DATE, todayStr)
-                            .apply()
+                    // Eğer antrenman yapılmadıysa ve dinlenme günü değilse, bu indeksi "kaçırılan" olarak işaretle
+                    if (!wasLastCompleted && !wasRestDay) {
+                        prefs.edit().putInt(KEY_SKIPPED_INDEX, currentIndex).apply()
                     }
+
+                    // PROGRAMI İLERLET (Hedef 1/7 -> 2/7 olması için)
+                    // Not: Kaç gün geçtiyse o kadar ilerletiyoruz
+                    val nextIndex = (currentIndex + diffInDays) % totalPrograms
+                    val currentTotalDays = prefs.getInt(KEY_TOTAL_DAYS, 1)
+
+                    prefs.edit()
+                        .putInt(KEY_CURRENT_INDEX, nextIndex)
+                        .putInt(KEY_TOTAL_DAYS, currentTotalDays + diffInDays)
+                        .putString(KEY_LAST_SHIFT_DATE, todayStr)
+                        .apply()
                 }
             } catch (e: Exception) {
+                // Hata durumunda sadece tarihi güncelle ki sonsuz döngüye girmesin
                 prefs.edit().putString(KEY_LAST_SHIFT_DATE, todayStr).apply()
             }
         }
