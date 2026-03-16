@@ -140,8 +140,9 @@ fun WorkoutScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-                ) {
+                    colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.1f)),
+
+                    ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         // GEÇMİŞ REKOR / HEDEF BİLGİSİ
                         if (previousPR != null) {

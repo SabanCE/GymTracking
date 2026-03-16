@@ -1,10 +1,15 @@
 package com.example.gymtracking
 
+import android.graphics.drawable.Drawable
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.foundation.shape.CircleShape
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,6 +47,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asComposeRenderEffect
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -69,6 +76,7 @@ fun ProgressScreen(
     var showDialog by remember { mutableStateOf(false) }
     var newWeight by remember { mutableStateOf("") }
     var newFat by remember { mutableStateOf("") }
+    var selectedPhotoForZoom by remember { mutableStateOf<ProgressPhoto?>(null) }
 
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let { onPhotosSelected(it) }
@@ -85,23 +93,47 @@ fun ProgressScreen(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-        Text(text = "Kişisel Rekorlar", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Text(text = "Kişisel Rekorlar (PR)", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(8.dp))// Eğer hiç rekor yoksa mesaj göster
         if (records.isEmpty()) {
-            Text(text = "Henüz rekor yok.", fontStyle = FontStyle.Italic, color = Color.Gray, modifier = Modifier.padding(vertical = 8.dp))
+            Text("Henüz bir rekor kaydedilmedi.", color = Color.Gray, fontStyle = FontStyle.Italic)
         } else {
-            records.forEach { record ->
-                Card(modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp)) {
-                    Row(modifier = Modifier
-                        .padding(16.dp)
-                        .fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Column {
-                            Text(text = record.name, fontWeight = FontWeight.Medium)
-                            Text(text = record.date, fontSize = 12.sp, color = Color.Gray)
-                        }
-                        Text(text = "${record.maxKg} kg", fontWeight = FontWeight.Bold, color = Color.Black)
+            // Kategorilere göre rekorları gruplandırıyoruz
+            ExerciseLibrary.categories.forEach { (categoryName, exerciseList) ->
+                // Bu kategoride en az bir rekor var mı kontrol et
+                val categoryRecords = records.filter { it.name in exerciseList }
+
+                if (categoryRecords.isNotEmpty()) {
+                    // Kategori Başlığı
+                    Text(
+                        text = categoryName,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.Gray,
+                        modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+                    )
+
+                    // O kategoriye ait rekor kartları
+                    categoryRecords.forEach { record ->
+                        RecordCard(record = record)
                     }
+                }
+            }
+
+            // Eğer kategorize edilemeyen (özel eklenen) hareketler varsa onları da "Diğer" altında gösterelim
+            val categorizedNames = ExerciseLibrary.categories.values.flatten()
+            val otherRecords = records.filter { it.name !in categorizedNames }
+
+            if (otherRecords.isNotEmpty()) {
+                Text(
+                    text = "Diğer",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+                )
+                otherRecords.forEach { record ->
+                    RecordCard(record = record)
                 }
             }
         }
@@ -146,50 +178,93 @@ fun ProgressScreen(
                 }
             }
 
+            // ... LazyRow içindeki items(photos) bloğu
             items(photos) { photo ->
-                // Mevcut Fotoğraflar
+                var isVisible by remember { mutableStateOf(false) }
                 Card(
                     modifier = Modifier
                         .size(width = 150.dp, height = 200.dp)
-                        .combinedClickable(
-                            onClick = { /* Fotoğrafı büyütmek istersen buraya */ },
-                            onLongClick = { onDeletePhoto(photo) }
+                        .combinedClickable( // clickable yerine combinedClickable kullanıyoruz
+                            onClick = { isVisible = !isVisible },
+                            onLongClick = { selectedPhotoForZoom = photo } // Uzun basınca büyüt
                         ),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+                )
+
+                    {
+                    // Tüm katmanları üst üste bindirmek için tek bir Box
                     Box(modifier = Modifier.fillMaxSize()) {
-                        // Fotoğrafın Kendisi
+
+                        // 1. KATMAN: Fotoğraf
                         AsyncImage(
                             model = photo.imageUri,
                             contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    // Android 12+ için gerçek buğulama, altı için sadece karartma
+                                    if (!isVisible && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                                        renderEffect =
+                                            android.graphics.RenderEffect.createBlurEffect(
+                                                35f, 35f, android.graphics.Shader.TileMode.CLAMP
+                                            ).asComposeRenderEffect()
+                                    }
+                                },
                             contentScale = ContentScale.Crop
                         )
 
-                        // Alt Kısımdaki Tarih Bandı
+                        // 2. KATMAN: Gizlilik Overlay (Sadece gizliyken görünür)
+                        if (!isVisible) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = 0.7f)), // Fotoğrafı tamamen gizlemek için opaklığı artırdık
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(
+                                        // VisibilityOff yerine garantili çalışan bir ikon yolu
+                                        imageVector =Icons.Default.VisibilityOff,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.graphicsLayer(rotationZ = 45f) // İkonu çarpı (X) yapar
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Gizli",
+                                        color = Color.White,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+
+                        // 3. KATMAN: Tarih Bandı (Her zaman en üstte ve fotoğrafın üzerinde)
                         Box(
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
                                 .fillMaxWidth()
-                                .background(Color.Black.copy(alpha = 0.6f)) // Yarı saydam siyah arka plan
+                                .background(Color.Black.copy(alpha = 0.6f))
                                 .padding(vertical = 4.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = photo.date, // ProgressPhoto modelindeki date alanı
+                                text = photo.date,
                                 color = Color.White,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium
+                                fontSize = 11.sp
                             )
                         }
                     }
                 }
             }
 
+
         }
         Spacer(modifier = Modifier.height(12.dp))
         contentAfterPhotos()
         Spacer(modifier = Modifier.height(40.dp))
+
     }
 
     if (showDialog) {
@@ -228,4 +303,78 @@ fun ProgressScreen(
             dismissButton = { TextButton(onClick = { showDialog = false }) { Text("İptal", color = Color.Black) } }
         )
     }
+    if (selectedPhotoForZoom != null) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { selectedPhotoForZoom = null },
+            properties = androidx.compose.ui.window.DialogProperties(
+                usePlatformDefaultWidth = false // Tam ekran olması için
+            )
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+            ) {
+                // Büyük Fotoğraf
+                AsyncImage(
+                    model = selectedPhotoForZoom?.imageUri,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Fit
+                )
+
+                // Üst Bar (Geri ve Sil Butonları)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 40.dp, start = 16.dp, end = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Geri Dön Butonu
+                    androidx.compose.material3.IconButton(
+                        onClick = { selectedPhotoForZoom = null },
+                        modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = androidx.compose.material.icons.Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Geri",
+                            tint = Color.White
+                        )
+                    }
+
+                    // Sil Butonu
+                    androidx.compose.material3.IconButton(
+                        onClick = {
+                            selectedPhotoForZoom?.let { photo ->
+                                onDeletePhoto(photo) // MainActivity'deki silme fonksiyonunu çağırır
+                                selectedPhotoForZoom = null // Ekranı kapat
+                            }
+                        },
+                        modifier = Modifier.background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = androidx.compose.material.icons.Icons.Default.Delete,
+                            contentDescription = "Sil",
+                            tint = Color.Red
+                        )
+                    }
+                }
+
+                // Alt Kısım Tarih Bilgisi
+                Text(
+                    text = selectedPhotoForZoom?.date ?: "",
+                    color = Color.White,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 40.dp)
+                        .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
 }
+

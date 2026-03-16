@@ -88,36 +88,36 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             // Dinlenme gününü atla butonu: İndeksi ilerletir ama günü (totalDays) ve bitirilme durumunu değiştirmez.
-            if (activeProgram?.istRestDay == true && !localIsFinishedToday) {
+            if (activeProgram?.istRestDay == true && !isFinishedToday) {
                 Button(
-                    onClick = {
-                        scope.launch {
-                            // Sadece program indeksini ilerlet, gün sayısını ve tamamlanma durumunu değiştirme
-                            WorkoutPrefs.forceNextProgram(context, programs.size)
-                            
-                            // UI'ı güncellemek için tetikleyici
-                            navController.navigate(Screen.Home.route) {
-                                popUpTo(Screen.Home.route) { inclusive = true }
-                            }
+                    onClick = {scope.launch {
+                        // Sadece indeksi ve shift tarihini günceller
+                        WorkoutPrefs.forceNextProgram(context, programs.size)
+
+                        // UI'ı anında tazelemek için (isFinishedToday değişmeyeceği için sayfayı yenilemeliyiz)
+                        navController.navigate(Screen.Home.route) {
+                            popUpTo(Screen.Home.route) { inclusive = true }
                         }
+                    }
                     },
                     modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Dinlenme Gününü Atla ve Devam Et", fontWeight = FontWeight.Bold)
+                    Text("Dinlenmeyi Bitir ve Programa Geç", fontWeight = FontWeight.Bold)
                 }
             }
 
             // hasMissed kontrolüne yeni yerel state'i de ekliyoruz
             // hasMissed kontrolüne yeni kalıcı kontrolü ekliyoruz
-            val isWarningAlreadyDismissed = WorkoutPrefs.isWarningDismissedToday(context)
-            val hasMissed = remember(programs, totalDays, localIsFinishedToday) {
-                WorkoutPrefs.hasMissedWorkout(context)
+            val hasMissed = WorkoutPrefs.hasMissedWorkout(context)
+            //val isWarningDismissed = WorkoutPrefs.isWarningDismissedToday(context)
+            //val isWarningAlreadyDismissed = WorkoutPrefs.isWarningDismissedToday(context)
+            val isWarningDismissed = remember(localIsFinishedToday) {
+                WorkoutPrefs.isWarningDismissedToday(context)
             }
-
             // ŞART: Kaçırılan antrenman varsa VE bugün bitmediyse VE bugün henüz "kapat" denmediyse
-            if (hasMissed && !localIsFinishedToday && !isWarningAlreadyDismissed) {
+            if (hasMissed && !localIsFinishedToday && !isWarningDismissed) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -142,17 +142,23 @@ fun HomeScreen(
                         Button(
                             onClick = {
                                 scope.launch {
+                                    // 1. Bir önceki programın sırasını al (Örn: 2/7 -> 1/7)
                                     val prevIndex = WorkoutPrefs.getPreviousProgramIndex(context, programs.size)
-                                    // KALICI OLARAK KAPAT
+
+                                    // 2. Uyarıyı bugün için kapat
                                     WorkoutPrefs.dismissWarning(context)
 
+                                    // 3. Sadece program indeksini güncelle (GÜNÜ AZALTMIYORUZ)
                                     context.getSharedPreferences("workout_prefs", Context.MODE_PRIVATE)
                                         .edit()
                                         .putInt("current_program_index", prevIndex)
-                                        .putInt("total_days_count", (totalDays - 1).coerceAtLeast(1))
+                                        // .putInt("total_days_count", ...) satırını SİLDİK
                                         .apply()
 
-                                    navController.navigate(Screen.Workout.route)
+                                    // 4. UI'ın yeni programı (activeProgram) algılaması için sayfayı yenile
+                                    navController.navigate(Screen.Home.route) {
+                                        popUpTo(Screen.Home.route) { inclusive = true }
+                                    }
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
@@ -221,7 +227,7 @@ fun HomeScreen(
             // 1. Bugün antrenman bitmemiş olmalı
             // 2. Dinlenme günü olmamalı
             // 3. YA hasMissed hiç olmamalı YA DA kullanıcı uyarıyı zaten kapatmış/seçimini yapmış olmalı
-            if (!localIsFinishedToday && activeProgram?.istRestDay == false && (!hasMissed || isWarningAlreadyDismissed)) {
+            if (!localIsFinishedToday && activeProgram?.istRestDay == false && (!hasMissed || isWarningDismissed)) {
                 Spacer(modifier = Modifier.height(24.dp))
                 Button(
                     onClick = {

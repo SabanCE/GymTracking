@@ -118,13 +118,17 @@ object WorkoutPrefs {
         if (totalPrograms == 0) return
         val prefs = getPrefs(context)
         val currentIndex = prefs.getInt(KEY_CURRENT_INDEX, 0)
+
+        //1. Sadece programı bir sonrakine atlat
         val nextIndex = (currentIndex + 1) % totalPrograms
         val today = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()).format(Date())
 
         prefs.edit()
             .putInt(KEY_CURRENT_INDEX, nextIndex)
-            .putString(KEY_LAST_COMPLETED_DATE, today) // BUGÜNÜ BİTTİ OLARAK İŞARETLE
-            .putInt(KEY_SKIPPED_INDEX, -1) // Varsa kaçırılan uyarısını temizle
+            // 2. ÖNEMLİ: Bugün kaydırma yapıldığını işaretle (Yarın tekrar kaymasın)
+            .putString(KEY_LAST_SHIFT_DATE, today)
+            // 3. BURADA KEY_LAST_COMPLETED_DATE GÜNCELLEMİYORUZ!
+            // Böylece bir sonraki program "yapılmamış" olarak görünmeye devam eder.
             .apply()
     }
 

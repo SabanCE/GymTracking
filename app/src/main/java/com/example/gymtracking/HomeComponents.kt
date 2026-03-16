@@ -1,6 +1,9 @@
 package com.example.gymtracking
 
 import android.net.Uri
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,22 +32,29 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asComposeRenderEffect
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import coil.compose.AsyncImage
 import java.util.Calendar
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.VisibilityOff
 
 @Composable
 fun getTextFieldColors() = OutlinedTextFieldDefaults.colors(
@@ -182,67 +192,7 @@ fun QuickStatsRow(lastWeight: String, totalPRs: Int, lastRecordname: String) {
     }
 }
 
-@Composable
-fun LastProgressPreview(lastPhotoUri: String?) {
-    Column(modifier = Modifier.padding(top = 24.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("Son Gelişim Fotoğrafın", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-        }
 
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(350.dp)
-                .padding(top = 8.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = if (lastPhotoUri != null) Color(0xFF1A1A1A) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-            ),
-            elevation = CardDefaults.cardElevation(if (lastPhotoUri != null) 6.dp else 0.dp)
-        ) {
-            if (lastPhotoUri != null) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    AsyncImage(
-                        model = lastPhotoUri,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .alpha(0.2f),
-                        contentScale = ContentScale.Crop
-                    )
-                    AsyncImage(
-                        model = lastPhotoUri,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(8.dp),
-                        contentScale = ContentScale.Fit
-                    )
-                }
-            } else {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            painter = painterResource(R.drawable.defimage),
-                            contentDescription = null,
-                            tint = Color.Black,
-                            modifier = Modifier.size(40.dp)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Henüz fotoğraf yok", color = Color.Gray)
-                    }
-                }
-            }
-        }
-    }
-}
 @Composable
 fun BottomNavigationBar(navController: NavHostController) {
     val items = listOf(Screen.Home, Screen.Programs, Screen.Workout, Screen.Progress)
@@ -273,6 +223,90 @@ fun BottomNavigationBar(navController: NavHostController) {
                     indicatorColor = Color.Black
                 )
             )
+        }
+    }
+}
+@Composable
+fun LastProgressPreview(lastPhotoUri: String?) {
+    // Fotoğrafın görünürlük durumu
+    var isVisible by remember { mutableStateOf(false) }
+
+    Column(modifier = Modifier.padding(top = 24.dp)) {
+        Text("Son Gelişim Fotoğrafın", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(350.dp) // ProgressScreen ile uyumlu yükseklik
+                .padding(top = 8.dp)
+                .clickable { isVisible = !isVisible }, // Tıklayınca aç/kapat
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (lastPhotoUri != null) Color(0xFF1A1A1A) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            ),
+            elevation = CardDefaults.cardElevation(if (lastPhotoUri != null) 6.dp else 0.dp)
+        ) {
+            if (lastPhotoUri != null) {
+                Box(modifier = Modifier.fillMaxSize()) {
+
+                    // 1. KATMAN: Fotoğraf (Bulanıklık Efekti ile)
+                    AsyncImage(
+                        model = lastPhotoUri,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                // Android 12+ için gerçek buğulama
+                                if (!isVisible && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                                    renderEffect = android.graphics.RenderEffect.createBlurEffect(
+                                        35f, 35f, android.graphics.Shader.TileMode.CLAMP
+                                    ).asComposeRenderEffect()
+                                }
+                            },
+                        contentScale = ContentScale.Fit
+                    )
+
+                    // 2. KATMAN: Gizlilik Overlay (Sadece gizliyken görünür)
+                    if (!isVisible) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.7f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = Icons.Default.VisibilityOff,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(32.dp).graphicsLayer(rotationZ = 45f) // X işareti
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Görmek için tıkla",
+                                    color = Color.White,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Fotoğraf yoksa gösterilecek boş alan
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_workout),
+                            contentDescription = null,
+                            tint = Color.Gray.copy(alpha = 0.5f),
+                            modifier = Modifier.size(60.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text("Henüz fotoğraf eklenmedi", color = Color.Gray)
+                    }
+                }
+            }
         }
     }
 }
@@ -309,4 +343,47 @@ fun calculateInitialDelay(): Long {
         calendar.add(Calendar.DAY_OF_MONTH, 1)
     }
     return calendar.timeInMillis - now
+}
+
+@Composable
+fun RecordCard(record: PersonelRecord) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Black.copy(alpha = 0.1f)),
+        border = BorderStroke(0.5.dp, Color.LightGray.copy(alpha = 0.5f))
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = record.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(text = record.date, fontSize = 12.sp, color = Color.Gray)
+            }
+
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = "${record.maxKg} kg",
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 18.sp,
+                    color = Color.Black
+                )
+                // Set ve Tekrar detayları (Eğer setDetails alanını eklediysen)
+                if (record.setDetails.isNotBlank()) {
+                    Text(
+                        text = record.setDetails,
+                        fontSize = 11.sp,
+                        color = Color.DarkGray,
+                        textAlign = TextAlign.End
+                    )
+                }
+            }
+        }
+    }
 }
