@@ -20,7 +20,11 @@ object ExerciseLibrary {
             "Close Grip Push-ups",
             "Chest Dips",
             "Svend Press",
-            "Incline Chest Press"
+            "Incline Chest Press",
+            "Low to High Cable Fly",
+            "High to Low Cable Fly",
+            "Middle Cable Fly Machine"
+
         ),
 
 
@@ -67,6 +71,7 @@ object ExerciseLibrary {
     "Squat",
     "Back Squat",
     "Front Squat",
+        "Hack Squat",
     "Goblet Squat",
     "Leg Press",
     "Lunge",

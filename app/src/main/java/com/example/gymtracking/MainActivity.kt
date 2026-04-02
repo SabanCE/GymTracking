@@ -113,13 +113,19 @@ fun MainScreen() {
     LaunchedEffect(Unit) {
             // el ile tarih ayarla
 /*
-            val prefs = context.getSharedPreferences("workout_prefs", android.content.Context.MODE_PRIVATE)
-            prefs.edit()
-                .putInt("total_days_count", 32)     // Ekranda 32. Gün yazar
-                .putInt("current_program_index", 3) // 4. programı seçer (Hedef 4/7 olması için)
-                .apply()
+    val prefs = context.getSharedPreferences("workout_prefs", android.content.Context.MODE_PRIVATE)
+    val today = java.text.SimpleDateFormat("dd.MM.yyyy", java.util.Locale.getDefault()).format(java.util.Date())
+
+    prefs.edit()
+        .putInt("total_days_count", 50)     // Ekranda 32. Gün yazar
+        .putInt("current_program_index", 5) // Program sırasını ayarlar
+        .putString("last_workout_date", today) // Bugünü tamamlanmış olarak işaretler
+        .apply()
+
 
  */
+
+
 
 
         // --- ADIM 2: ANDROID 13+ İÇİN İZİN İSTE ---

@@ -148,6 +148,14 @@ object WorkoutPrefs {
     fun hasMissedWorkout(context: Context): Boolean {
         return getSkippedProgramIndex(context) != -1
     }
+
+    // Seçilen programı "Bugünün Programı" olarak ayarla
+    fun setCurrentProgramIndex(context: Context, index: Int) {
+        getPrefs(context).edit()
+            .putInt(KEY_CURRENT_INDEX, index)
+            .apply()
+    }
+
     private const val KEY_LAST_DISMISSED_WARNING_DATE = "last_dismissed_warning_date"
 
     // Uyarıyı bugün için kapat

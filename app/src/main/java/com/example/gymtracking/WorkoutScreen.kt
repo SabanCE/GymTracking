@@ -30,7 +30,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -39,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,12 +49,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import kotlin.collections.component1
-import kotlin.collections.component2
-import kotlin.collections.set
 
 @Composable
 fun WorkoutScreen(
@@ -78,30 +77,53 @@ fun WorkoutScreen(
     }
 
     val context = LocalContext.current
-    var isFinishedToday by remember { mutableStateOf(WorkoutPrefs.isWorkoutFinishedToday(context)) }
+    val gson = remember { Gson() }
 
-    // Her egzersiz indeksi için: List<Pair<Kilo, Tekrar>> formatında veri tutuyoruz
-    val exerciseDetailsMap = remember(program.id) {
-        mutableStateMapOf<Int, List<Pair<String, String>>>().apply {
-            program.exercises.forEachIndexed { index, ex ->
-                val setSize = ex.sets.toIntOrNull() ?: 1
-                this[index] = List(setSize) { "" to "" }
+    // Egzersiz verilerini JSON (String) olarak saklıyoruz. String her zaman güvenle kaydedilir.
+    var exerciseDetailsJson by rememberSaveable(program.id) { mutableStateOf("") }
+    var completedJson by rememberSaveable(program.id) { mutableStateOf("") }
+    var isFinishedToday by rememberSaveable { mutableStateOf(WorkoutPrefs.isWorkoutFinishedToday(context)) }
+
+    // JSON'dan Map'e dönüştürme (UI için)
+    val exerciseDetailsMap = remember(exerciseDetailsJson, program.id) {
+        if (exerciseDetailsJson.isEmpty()) {
+            mutableStateMapOf<Int, List<Pair<String, String>>>().apply {
+                program.exercises.forEachIndexed { index, ex ->
+                    val setSize = ex.sets.toIntOrNull() ?: 1
+                    this[index] = List(setSize) { "" to "" }
+                }
             }
+        } else {
+            val type = object : TypeToken<Map<Int, List<Pair<String, String>>>>() {}.type
+            val data: Map<Int, List<Pair<String, String>>> = gson.fromJson(exerciseDetailsJson, type)
+            mutableStateMapOf<Int, List<Pair<String, String>>>().apply { putAll(data) }
         }
     }
 
-    val completedMap = remember(program.id) { mutableStateOf<Map<Int, Boolean>>(emptyMap()) }
+    val completedMap = remember(completedJson, program.id) {
+        if (completedJson.isEmpty()) {
+            mutableStateMapOf<Int, Boolean>()
+        } else {
+            val type = object : TypeToken<Map<Int, Boolean>>() {}.type
+            val data: Map<Int, Boolean> = gson.fromJson(completedJson, type)
+            mutableStateMapOf<Int, Boolean>().apply { putAll(data) }
+        }
+    }
 
-    // Tüm setlerin doluluk kontrolü
+    // Değişiklik olduğunda JSON'u güncelleme fonksiyonu
+    fun saveState() {
+        exerciseDetailsJson = gson.toJson(exerciseDetailsMap.toMap())
+        completedJson = gson.toJson(completedMap.toMap())
+    }
+
     val areAllExercisesCompleted = program.exercises.indices.all { exIndex ->
         val sets = exerciseDetailsMap[exIndex] ?: emptyList()
-        val isChecked = completedMap.value[exIndex] == true
+        val isChecked = completedMap[exIndex] == true
         val isFilled = sets.all { it.first.isNotBlank() && it.second.isNotBlank() }
         isChecked && isFilled
     }
 
     if (isFinishedToday || program.istRestDay) {
-        // ... (Tebrikler / Dinlenme Günü Ekranı aynı kalıyor)
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Card(
                 modifier = Modifier.fillMaxWidth().padding(32.dp),
@@ -144,7 +166,6 @@ fun WorkoutScreen(
 
                     ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        // GEÇMİŞ REKOR / HEDEF BİLGİSİ
                         if (previousPR != null) {
                             Surface(
                                 color = Color.Black.copy(alpha = 0.07f),
@@ -171,11 +192,10 @@ fun WorkoutScreen(
                                 Text(text = "Hedef: ${ex.sets} Set x ${ex.reps} Tekrar (RIR: ${ex.rir})", fontSize = 14.sp, color = Color.Gray)
                             }
                             Checkbox(
-                                checked = completedMap.value[exIndex] ?: false,
+                                checked = completedMap[exIndex] ?: false,
                                 onCheckedChange = { isChecked ->
-                                    val newMap = completedMap.value.toMutableMap()
-                                    newMap[exIndex] = isChecked
-                                    completedMap.value = newMap
+                                    completedMap[exIndex] = isChecked
+                                    saveState() // Durumu JSON olarak kaydet
                                 },
                                 colors = CheckboxDefaults.colors(checkedColor = Color.Black)
                             )
@@ -183,7 +203,6 @@ fun WorkoutScreen(
 
                         HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp)
 
-                        // SET GİRİŞ ALANLARI
                         val setList = exerciseDetailsMap[exIndex] ?: emptyList()
                         setList.forEachIndexed { setIndex, setPair ->
                             Row(
@@ -199,6 +218,7 @@ fun WorkoutScreen(
                                         val newList = setList.toMutableList()
                                         newList[setIndex] = weight to setPair.second
                                         exerciseDetailsMap[exIndex] = newList
+                                        saveState() // Değişikliği JSON olarak kaydet
                                     },
                                     label = { Text("kg") },
                                     modifier = Modifier.weight(1f),
@@ -214,6 +234,7 @@ fun WorkoutScreen(
                                         val newList = setList.toMutableList()
                                         newList[setIndex] = setPair.first to reps
                                         exerciseDetailsMap[exIndex] = newList
+                                        saveState() // Değişikliği JSON olarak kaydet
                                     },
                                     label = { Text("tekrar") },
                                     modifier = Modifier.weight(1f),
@@ -236,22 +257,30 @@ fun WorkoutScreen(
                     val newPRs = mutableListOf<PersonelRecord>()
 
                     exerciseDetailsMap.forEach { (exIndex, setList) ->
-                        if (completedMap.value[exIndex] == true) {
-                            // Detayları birleştir: "80x10, 80x8, 75x8"
-                            val detailString = setList.joinToString(", ") { "${it.first}x${it.second}" }
-                            // Max kiloyu bul
-                            val maxKg = setList.mapNotNull { it.first.toDoubleOrNull() }.maxOrNull() ?: 0.0
+                        if (completedMap[exIndex] == true) {
+                            // Sadece kilo ve tekrarı 0'dan büyük olan geçerli setleri filtrele
+                            val validSets = setList.filter { 
+                                val weight = it.first.toDoubleOrNull() ?: 0.0
+                                val reps = it.second.toIntOrNull() ?: 0
+                                weight > 0 && reps > 0
+                            }
 
-                            newPRs.add(
-                                PersonelRecord(
-                                    name = program.exercises[exIndex].name,
-                                    maxKg = maxKg.toString(),
-                                    setDetails = detailString,
-                                    date = today,
-                                    sets = program.exercises[exIndex].sets,
-                                    reps = program.exercises[exIndex].reps
+                            // Eğer en az bir geçerli set varsa PR olarak kaydet
+                            if (validSets.isNotEmpty()) {
+                                val detailString = validSets.joinToString(", ") { "${it.first}x${it.second}" }
+                                val maxKg = validSets.mapNotNull { it.first.toDoubleOrNull() }.maxOrNull() ?: 0.0
+
+                                newPRs.add(
+                                    PersonelRecord(
+                                        name = program.exercises[exIndex].name,
+                                        maxKg = maxKg.toString(),
+                                        setDetails = detailString,
+                                        date = today,
+                                        sets = program.exercises[exIndex].sets,
+                                        reps = program.exercises[exIndex].reps
+                                    )
                                 )
-                            )
+                            }
                         }
                     }
 

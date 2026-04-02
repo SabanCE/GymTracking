@@ -11,16 +11,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -38,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -51,10 +54,12 @@ fun ProgramsScreen(
     onBack: () -> Unit,
     onEdit: (WorkoutProgram) -> Unit
 ) {
-    // Dialog durumunu ve silinecek programı takip eden state'ler
+    val context = LocalContext.current
+    // Dialog durumlarını takip eden state'ler
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showSetTodayDialog by remember { mutableStateOf(false) }
     var programToDelete by remember { mutableStateOf<WorkoutProgram?>(null) }
-
+    var programToSetToday by remember { mutableStateOf<Pair<Int, WorkoutProgram>?>(null) }
 
     Column(modifier = Modifier
         .fillMaxSize()
@@ -80,7 +85,7 @@ fun ProgramsScreen(
             }
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(programs) { program ->
+                itemsIndexed(programs) { index, program ->
                     var isExpanded by remember { mutableStateOf(false) }
 
                     Card(
@@ -105,21 +110,23 @@ fun ProgramsScreen(
                                     }
                                 }
 
-                                Row(verticalAlignment = Alignment.CenterVertically) { // Dikey hizalama eklendi
-                                    if (!program.istRestDay) {
-                                        // Hizalamayı eşitlemek için Icon yerine IconButton veya Box kullanıyoruz
-                                        IconButton(onClick = { isExpanded = !isExpanded }) {            Icon(
-                                            imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                                            contentDescription = if (isExpanded) "Daralt" else "Genişlet",
-                                            tint = Color.Gray
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    // BUGÜNÜN PROGRAMI YAP BUTONU
+                                    IconButton(onClick = {
+                                        programToSetToday = index to program
+                                        showSetTodayDialog = true
+                                    }) {
+                                        Icon(
+                                            imageVector = Icons.Default.PlayArrow,
+                                            contentDescription = "Bugünün Programı Yap",
+                                            tint = Color(0xFF4CAF50),
+                                            modifier = Modifier.size(28.dp)
                                         )
-                                        }
                                     }
 
-                                    // DÜZENLEME BUTONU (Sıralamayı düzelttim: Düzenle -> Sil genelde daha iyi durur)
+                                    // DÜZENLEME BUTONU
                                     IconButton(onClick = { onEdit(program) }) {
-                                        // Refresh yerine Edit ikonunu kullanmak daha doğru olur
-                                        Icon(imageVector = Icons.Default.Refresh, contentDescription = "Düzenle", tint = Color.Black)
+                                        Icon(imageVector = Icons.Default.Edit, contentDescription = "Düzenle", tint = Color.Black)
                                     }
 
                                     // SİLME BUTONU
@@ -127,7 +134,17 @@ fun ProgramsScreen(
                                         programToDelete = program
                                         showDeleteDialog = true
                                     }) {
-                                        Icon(Icons.Default.Delete, "Sil", tint = Color.Red)
+                                        Icon(Icons.Default.Delete, "Sil", tint = Color.Red.copy(alpha = 0.7f))
+                                    }
+
+                                    if (!program.istRestDay) {
+                                        IconButton(onClick = { isExpanded = !isExpanded }) {
+                                            Icon(
+                                                imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                                contentDescription = if (isExpanded) "Daralt" else "Genişlet",
+                                                tint = Color.Gray
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -143,7 +160,6 @@ fun ProgramsScreen(
                                     ) {
                                         Text(text = ex.name, fontSize = 15.sp)
                                         Text(text = "${ex.sets}x${ex.reps} (RIR: ${ex.rir})", fontSize = 14.sp, color = Color.Gray)
-
                                     }
                                 }
                             }
@@ -154,12 +170,44 @@ fun ProgramsScreen(
         }
     }
 
-    // ONAY ALERTI (Silmek istediğinize emin misiniz?)
+    // BUGÜNÜN PROGRAMI ONAY ALERTI
+    if (showSetTodayDialog && programToSetToday != null) {
+        AlertDialog(
+            onDismissRequest = { showSetTodayDialog = false },
+            title = { Text(text = "Programı Değiştir", fontWeight = FontWeight.Bold) },
+            text = { Text(text = "${programToSetToday?.second?.name} programını bugünün programı olarak ayarlamak istediğinizden emin misiniz?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        programToSetToday?.let { (index, _) ->
+                            WorkoutPrefs.setCurrentProgramIndex(context, index)
+                        }
+                        showSetTodayDialog = false
+                        programToSetToday = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Evet, Ayarla", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showSetTodayDialog = false
+                    programToSetToday = null
+                }) {
+                    Text("İptal", color = Color.Black)
+                }
+            }
+        )
+    }
+
+    // SİLME ONAY ALERTI
     if (showDeleteDialog && programToDelete != null) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text(text = "Programı Sil", fontWeight = FontWeight.Bold, color = Color.Black) },
-            text = { Text(text = "${programToDelete?.name} programını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.") },
+            title = { Text(text = "Programı Sil", fontWeight = FontWeight.Bold) },
+            text = { Text(text = "${programToDelete?.name} programını silmek istediğinizden emin misiniz?") },
             confirmButton = {
                 Button(
                     onClick = {
